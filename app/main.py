@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hmac
-import os
 from datetime import UTC, datetime
 from typing import Annotated, Literal, cast
 
@@ -14,6 +13,7 @@ from starlette.responses import JSONResponse, Response
 
 from app.db import DatabaseConnection, Row, database
 from app.kanban import router as kanban_router
+from app.settings import bind_request_environment, get_setting, is_worker_request
 
 Status = Literal["assigned", "in_progress", "completed"]
 Priority = Literal["low", "medium", "high"]
@@ -192,19 +192,26 @@ async def require_team_token(
     request: Request, call_next: RequestResponseEndpoint
 ) -> Response:
     """Require a bearer token on API routes when a shared token is configured."""
-    expected_token = os.environ.get("TTODO_API_TOKEN")
-    if request.url.path.startswith("/api/") and expected_token:
-        authorization = request.headers.get("authorization", "")
-        supplied_token = authorization.removeprefix("Bearer ")
-        if not authorization.startswith("Bearer ") or not hmac.compare_digest(
-            supplied_token, expected_token
-        ):
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "유효한 API 토큰이 필요합니다."},
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-    return await call_next(request)
+    with bind_request_environment(request.scope):
+        expected_token = get_setting("TTODO_API_TOKEN")
+        if request.url.path.startswith("/api/"):
+            if is_worker_request() and not expected_token:
+                return JSONResponse(
+                    status_code=503,
+                    content={"detail": "API 토큰이 설정되지 않았습니다."},
+                )
+            if expected_token:
+                authorization = request.headers.get("authorization", "")
+                supplied_token = authorization.removeprefix("Bearer ")
+                if not authorization.startswith("Bearer ") or not hmac.compare_digest(
+                    supplied_token, expected_token
+                ):
+                    return JSONResponse(
+                        status_code=401,
+                        content={"detail": "유효한 API 토큰이 필요합니다."},
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+        return await call_next(request)
 
 
 @app.post("/api/v1/tasks", status_code=201)

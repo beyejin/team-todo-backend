@@ -21,6 +21,18 @@ uv run uvicorn app.main:app --reload
 
 기본 API 주소는 `http://127.0.0.1:8000`입니다. API 문서는 `http://127.0.0.1:8000/docs`에서 볼 수 있습니다. 기본 SQLite 파일은 `data/todo.db`입니다.
 
+## Cloudflare Python Worker
+
+Worker용 소스는 `scripts/build_worker.py`가 기존 `app/`을 `.worker-build/` 아래에 복사해 준비합니다. Python Workers 도구에는 uv 0.12.3 이상이 필요하므로, 별도 도구 환경에서 실행합니다.
+
+```console
+uv sync
+uv run python scripts/build_worker.py
+uvx --from "uv>=0.12.3" uv run pywrangler dev
+```
+
+배포 환경에는 `TTODO_API_TOKEN`과 PostgreSQL 접속 문자열 `DATABASE_URL`이 필요합니다. Worker는 토큰이나 DB 설정이 없으면 업무 API에 `503`을 반환하며, SQLite로 전환하지 않습니다. DB 스키마는 Worker 밖에서 미리 적용해야 합니다. Todo의 첫 스키마는 `migrations/postgres/001_initial.sql`을 사용합니다. 실제 Worker 배포와 원격 DB 초기화는 아직 완료되지 않았습니다.
+
 ## CLI 사용
 
 서버를 실행한 터미널은 그대로 두고, 새 터미널을 프로젝트 루트에서 엽니다. 별도 전역 설치 없이 `uvx`로 실행할 수 있습니다.
@@ -39,7 +51,7 @@ uvx --from ./cli ttodo kanban list
 uvx --from ./cli ttodo kanban get <작업-UUID>
 ```
 
-공유 서버에는 `TTODO_BASE_URL`과 `TTODO_API_TOKEN`을 설정해야 합니다. 서버는 `KANBAN_DATABASE_URL`, `KANBAN_BOARD_ID`, `KANBAN_ACTOR_PROFILE_ID`를 별도 비밀 환경값으로 사용합니다. 데이터베이스 비밀번호와 토큰은 명령 인수나 저장소에 넣지 않습니다. 현재 공유 서버 배포와 원격 보드 초기 데이터 설정은 완료되지 않아, 설정된 서버에서만 이 명령을 사용할 수 있습니다.
+공유 서버에는 `TTODO_BASE_URL`과 `TTODO_API_TOKEN`을 설정해야 합니다. 서버는 `KANBAN_DATABASE_URL`, `KANBAN_BOARD_ID`, `KANBAN_ACTOR_PROFILE_ID`를 별도 환경 설정으로 사용합니다. 데이터베이스 비밀번호와 토큰은 명령 인수나 저장소에 넣지 않습니다. 현재 공유 서버 배포와 원격 보드 초기 데이터 설정은 완료되지 않아, 설정된 서버에서만 이 명령을 사용할 수 있습니다.
 
 자주 쓰는 명령은 다음과 같습니다.
 
