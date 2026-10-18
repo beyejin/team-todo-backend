@@ -1,0 +1,45 @@
+{
+  "role_creation_sql": "PASS",
+  "credential_format": "both are 64 lowercase hex and distinct; values not retained",
+  "migration": "PASS",
+  "postgres_version": "170011",
+  "migration_role": {
+    "is_superuser": false,
+    "has_createrole": true,
+    "owns_database_and_tables": true
+  },
+  "worker_role_flags_safe": true,
+  "rls_enabled_tables": 14,
+  "worker_policy_tables": 11,
+  "anon_visible_profile_rows": 0,
+  "api": {
+    "create": 201,
+    "get": 200,
+    "list": 200
+  },
+  "existing_rows_unchanged": true,
+  "scope": "Disposable local PostgreSQL 17; remote Supabase security changes not applied",
+  "remote_preflight": {
+    "project_ref": "dhdjqyviswaexqmlxnwm",
+    "project_name": "kanban-team6",
+    "tables": 14,
+    "rls_enabled_before_change": false,
+    "counts": {
+      "profiles": 2,
+      "workspaces": 1,
+      "projects": 1,
+      "boards": 1,
+      "issues": 1
+    },
+    "board_id": "efd4cf99-cf34-42db-a3e6-73ef79e65371",
+    "actor_id": "0ae91996-4110-44cb-8ced-8285b8163936",
+    "workflow_categories": [
+      "todo",
+      "in_progress",
+      "done"
+    ],
+    "worker_role_exists": false,
+    "session_pooler_host": "aws-0-ap-northeast-2.pooler.supabase.com",
+    "session_pooler_port": 5432
+  }
+}

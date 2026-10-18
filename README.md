@@ -31,7 +31,16 @@ uv run python scripts/build_worker.py
 uvx --from "uv>=0.12.3" uv run pywrangler dev
 ```
 
-배포 환경에는 `TTODO_API_TOKEN`과 PostgreSQL 접속 문자열 `DATABASE_URL`이 필요합니다. Worker는 토큰이나 DB 설정이 없으면 업무 API에 `503`을 반환하며, SQLite로 전환하지 않습니다. DB 스키마는 Worker 밖에서 미리 적용해야 합니다. Todo의 첫 스키마는 `migrations/postgres/001_initial.sql`을 사용합니다. 실제 Worker 배포와 원격 DB 초기화는 아직 완료되지 않았습니다.
+배포 환경에는 `TTODO_API_TOKEN`이 필요합니다. 기본 Todo API는 PostgreSQL 접속 문자열 `DATABASE_URL`을 사용하고, 공유 칸반 API는 아래의 별도 연결 설정을 사용합니다. Worker는 필수 설정이 없으면 해당 업무 API에 `503`을 반환하며 SQLite로 전환하지 않습니다. DB 스키마는 Worker 밖에서 미리 적용해야 합니다. Todo의 첫 스키마는 `migrations/postgres/001_initial.sql`을 사용합니다. 실제 Worker 배포는 아직 완료되지 않았습니다.
+
+### 기존 Supabase 공유 보드 연결
+
+기존 보드와 데이터를 보존하며 다음 SQL을 순서대로 적용합니다.
+
+1. `migrations/supabase/000_create_worker_role.sql`: 새 서버 전용 계정과 무작위 자격 증명을 생성합니다. 기존 DB 관리자 비밀번호는 변경하지 않습니다. 반환된 비밀번호와 API 토큰을 Git이나 쿼리 결과 파일에 저장하지 마세요.
+2. `migrations/supabase/001_worker_access.sql`: 기존 14개 테이블의 RLS를 켜고, 서버 계정에 칸반 API에 필요한 읽기와 쓰기만 허용합니다. 익명 Data API 접근은 차단됩니다. 테이블과 기존 행을 삭제하거나 초기화하지 않습니다.
+
+Worker에는 `TTODO_API_TOKEN`, `KANBAN_DATABASE_URL`을 비밀값으로 설정하고, `KANBAN_BOARD_ID`, `KANBAN_ACTOR_PROFILE_ID`를 기존 보드와 멤버 UUID로 설정합니다. Session Pooler 접속 시 사용자명은 `ttodo_worker.<project-ref>`이며, Connect 화면의 호스트와 포트 및 TLS 설정을 사용합니다. 공유 칸반 API만 사용할 때는 `DATABASE_URL`이 필요하지 않습니다.
 
 ## CLI 사용
 
