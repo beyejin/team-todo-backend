@@ -1,0 +1,277 @@
+{
+  "verified_at": "2026-10-18T18:27:08.733140+09:00",
+  "local_verification": {
+    "status": "PASS",
+    "verify_sh_exit_code": 0,
+    "checks": [
+      {
+        "name": "missing token",
+        "exit_code": 1,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "list"
+        ],
+        "expected_http_status": 401
+      },
+      {
+        "name": "todo create",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "create",
+          "--title",
+          "Python 3.13 E2E task"
+        ],
+        "expected_http_status": 201
+      },
+      {
+        "name": "todo get",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "get",
+          "1"
+        ],
+        "expected_http_status": 200
+      },
+      {
+        "name": "todo update",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "update",
+          "1",
+          "--title",
+          "Python 3.13 E2E updated"
+        ],
+        "expected_http_status": 200
+      },
+      {
+        "name": "todo list",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "list"
+        ],
+        "expected_http_status": 200
+      },
+      {
+        "name": "todo delete",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "delete",
+          "1"
+        ],
+        "expected_http_status": 200
+      },
+      {
+        "name": "todo deleted",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "deleted"
+        ],
+        "expected_http_status": 200
+      },
+      {
+        "name": "todo restore",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "restore",
+          "1"
+        ],
+        "expected_http_status": 200
+      },
+      {
+        "name": "todo get restored",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "get",
+          "1"
+        ],
+        "expected_http_status": 200
+      },
+      {
+        "name": "kanban create",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "kanban",
+          "create",
+          "--title",
+          "Python 3.13 Kanban E2E",
+          "--assignee",
+          "han-yejin",
+          "--label",
+          "Verification"
+        ],
+        "expected_http_status": 201
+      },
+      {
+        "name": "kanban get",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "kanban",
+          "get",
+          "33a958b3-37ba-4758-bc5e-9a7b810ee3ac"
+        ],
+        "expected_http_status": 200
+      },
+      {
+        "name": "kanban list",
+        "exit_code": 0,
+        "command_argv": [
+          "uvx",
+          "--python",
+          "3.13",
+          "--from",
+          "./cli",
+          "ttodo",
+          "--json",
+          "kanban",
+          "list"
+        ],
+        "expected_http_status": 200
+      }
+    ],
+    "todo_id": "1",
+    "kanban_id": "33a958b3-37ba-4758-bc5e-9a7b810ee3ac",
+    "server": "uvicorn on 127.0.0.1:18765 stopped in finally",
+    "storage": "Todo used temporary SQLite path removed with temp directory; Kanban used disposable localhost PostgreSQL",
+    "verification": {
+      "command": "bash scripts/verify.sh",
+      "exit_code": 0,
+      "log_path": "python313-2026-10-18.log",
+      "backend_tests": "18 passed, PostgreSQL test included, skip 0",
+      "cli_tests": "51 passed"
+    },
+    "data_safety": {
+      "todo_database": "TODO_DB_PATH pointed to a TemporaryDirectory path; directory removed after server shutdown",
+      "user_sqlite": "not opened; DATABASE_URL unset and project default TODO_DB_PATH overridden",
+      "kanban_database": "local disposable container database kanban_verify"
+    },
+    "server_stopped": true,
+    "cleanup": {
+      "container_removed": true,
+      "matching_secret_state_files_removed": 0,
+      "private_env_file_removed": true,
+      "todo_temp_directory_removed": true
+    },
+    "response_status_note": "Success status values are expected from API route contracts based on CLI success; CLI does not print response status. Missing-token 401 was directly asserted from CLI error output.",
+    "scope": "Local Python 3.13 backend, PostgreSQL, and actual CLI processes"
+  },
+  "python_version_audit": {
+    "status": "PASS",
+    "backend": "3.13.14",
+    "cli": "3.13.14",
+    "requires_python": ">=3.13,<3.14",
+    "ruff": "py313",
+    "mypy": "3.13",
+    "ci": "3.13",
+    "old_3_11_references_found": false,
+    "wheel_requires_python": ">=3.13,<3.14"
+  },
+  "cloudflare_runtime_probe": {
+    "wrapper_code": "from app.main import app\nfrom workers import asgi\n\nDefault = asgi.entrypoint(app)\n",
+    "run_command": "PATH=<tmp>/uv-bin/bin:$PATH UV_PYTHON=python3.13 UV_PYTHON_DOWNLOADS=automatic uv run --project <tmp> --python 3.13 pywrangler dev --ip 127.0.0.1 --port 18787",
+    "checks": {
+      "GET /openapi.json": {
+        "status": 200,
+        "observed": "Team Todo API; 6 paths"
+      },
+      "GET /api/v1/tasks": {
+        "status": 500,
+        "observed_log_excerpt": "PermissionError: [Errno 2] Permission denied: '/session/metadata/data'"
+      }
+    },
+    "token_binding": {
+      "status": "미확인",
+      "note": "binding 표시를 확인했으나 앱의 인증 동작은 검증되지 않음"
+    },
+    "runtime_python": "Pyodide 3.14.2 (pywrangler가 cpython-3.14.2-emscripten-wasm32-musl 다운로드)",
+    "uv_requirement": "pywrangler 실행 시 uv >= 0.12.3 필요; 시스템 uv 0.11.21로 실패했고 임시 venv의 uv 0.13.1로 실행",
+    "cleanup": "임시 서버 종료, /tmp 프로젝트와 산출물 제거; 저장소 변경 없음",
+    "official_source": "https://developers.cloudflare.com/workers/languages/python/packages/fastapi/"
+  },
+  "cloudflare_remote": {
+    "worker": "team-todo-backend",
+    "exists": false,
+    "api_error_code": 10007,
+    "database_bindings_configured": false,
+    "deployed": false
+  },
+  "conclusion": {
+    "local": "PASS: backend 18 passed; CLI 51 passed; no skipped tests; actual CLI flows passed",
+    "cloudflare": "NOT READY: SQLite write fails in Worker; authentication using Worker bindings not validated; remote DB configuration absent"
+  }
+}

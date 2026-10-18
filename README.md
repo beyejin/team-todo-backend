@@ -1,0 +1,103 @@
+# 팀 Todo
+
+팀 Todo는 로컬 FastAPI 서버와 `ttodo` 명령줄 도구로 할 일을 관리하는 프로젝트입니다. 할 일을 만들고, 조건에 따라 찾고, 수정하고, 삭제하거나 복구할 수 있습니다.
+
+## 준비
+
+- Python 3.13
+- [`uv`](https://docs.astral.sh/uv/)
+
+프로젝트 루트에서 의존성을 설치합니다.
+
+```console
+uv sync
+```
+
+## 서버 실행
+
+```console
+uv run uvicorn app.main:app --reload
+```
+
+기본 API 주소는 `http://127.0.0.1:8000`입니다. API 문서는 `http://127.0.0.1:8000/docs`에서 볼 수 있습니다. 기본 SQLite 파일은 `data/todo.db`입니다.
+
+## CLI 사용
+
+서버를 실행한 터미널은 그대로 두고, 새 터미널을 프로젝트 루트에서 엽니다. 별도 전역 설치 없이 `uvx`로 실행할 수 있습니다.
+
+```console
+uvx --from ./cli ttodo --help
+uvx --from ./cli ttodo create --title "주간 보고서 작성" --assignee "Jin" --tag "업무"
+uvx --from ./cli ttodo list --status assigned --tag "업무"
+```
+
+공유 Supabase 칸반 보드에 작업을 저장하거나 목록을 보려면 `kanban` 명령을 사용합니다. 이 API는 기존 `issues`, `board_items`, `issue_assignees`, `issue_labels` 관계를 사용합니다.
+
+```console
+uvx --from ./cli ttodo kanban create --title "데모 리뷰" --assignee han-yejin --label Testing
+uvx --from ./cli ttodo kanban list
+uvx --from ./cli ttodo kanban get <작업-UUID>
+```
+
+공유 서버에는 `TTODO_BASE_URL`과 `TTODO_API_TOKEN`을 설정해야 합니다. 서버는 `KANBAN_DATABASE_URL`, `KANBAN_BOARD_ID`, `KANBAN_ACTOR_PROFILE_ID`를 별도 비밀 환경값으로 사용합니다. 데이터베이스 비밀번호와 토큰은 명령 인수나 저장소에 넣지 않습니다. 현재 공유 서버 배포와 원격 보드 초기 데이터 설정은 완료되지 않아, 설정된 서버에서만 이 명령을 사용할 수 있습니다.
+
+자주 쓰는 명령은 다음과 같습니다.
+
+```console
+# 상세 조회
+uvx --from ./cli ttodo get 1
+
+# 일부 필드 수정
+uvx --from ./cli ttodo update 1 --status in_progress --priority high
+
+# 설명과 담당자 비우기
+uvx --from ./cli ttodo update 1 --clear-description --clear-assignees
+
+# 삭제된 할 일 확인 및 복구
+uvx --from ./cli ttodo deleted
+uvx --from ./cli ttodo restore 1
+
+# 할 일을 기본 목록에서 숨기기
+uvx --from ./cli ttodo delete 1
+```
+
+삭제는 소프트 삭제입니다. 항목을 기본 목록에서 숨기며 `deleted`로 확인한 뒤 `restore`로 복구할 수 있습니다.
+
+각 명령의 입력과 예시는 `ttodo <명령> --help`에서 확인합니다. 성공 결과를 프로그램에서 처리하려면 전역 `--json` 옵션을 명령 앞에 지정합니다.
+
+```console
+uvx --from ./cli ttodo --json list --limit 10
+uvx --from ./cli ttodo --json get 1
+```
+
+기본 서버 대신 다른 주소를 사용하려면 `--base-url` 또는 `TTODO_BASE_URL`을 지정합니다. 명령행 옵션이 환경 변수보다 우선합니다.
+
+```console
+uvx --from ./cli ttodo --base-url http://127.0.0.1:9000 list
+```
+
+서버에 `TTODO_API_TOKEN`이 설정된 경우 CLI에서도 같은 값을 환경 변수로 설정합니다. 토큰을 셸 명령에 직접 적지 마세요.
+
+```console
+export TTODO_API_TOKEN="팀에서 안전하게 전달한 토큰"
+uvx --from ./cli ttodo list
+```
+
+## 개발과 검증
+
+CLI 의존성을 설치하고 테스트를 실행합니다.
+
+```console
+uv sync --project cli
+uv run --project cli pytest
+```
+
+백엔드와 CLI의 lint, 포맷, 타입 및 테스트를 함께 확인합니다.
+
+```console
+bash scripts/verify.sh
+```
+
+## 동작 범위
+
+기본 서버는 로컬 SQLite로 실행됩니다. 공유 보드 명령은 별도 보드 DB 설정이 완료된 서버에서 사용합니다. 세부 요구사항과 API 계약은 [`docs/PRD.md`](docs/PRD.md), [`docs/TSD.md`](docs/TSD.md), [`docs/PRD_CLI.md`](docs/PRD_CLI.md), [`docs/TSD_CLI.md`](docs/TSD_CLI.md)를 참고합니다.

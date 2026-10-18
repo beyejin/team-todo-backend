@@ -1,0 +1,32 @@
+All checks passed!
+28 files already formatted
+Success: no issues found in 4 source files
+============================= test session starts ==============================
+platform darwin -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: /Users/han-yejin/Developer/team-todo-backend
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1
+collected 18 items
+
+tests/test_kanban_api.py .                                               [  5%]
+tests/test_tasks.py ................                                     [ 94%]
+tests/test_tasks_postgres.py .                                           [100%]
+
+============================== 18 passed in 0.64s ==============================
+All checks passed!
+7 files already formatted
+Success: no issues found in 33 source files
+============================= test session starts ==============================
+platform darwin -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: /Users/han-yejin/Developer/team-todo-backend
+configfile: pyproject.toml
+plugins: anyio-4.15.1
+collected 51 items
+
+tests/test_cli_requests.py ............................................. [ 88%]
+..                                                                       [ 92%]
+tests/test_help.py ..                                                    [ 96%]
+tests/test_openapi_coverage.py ..                                        [100%]
+
+============================= 51 passed in 23.96s ==============================

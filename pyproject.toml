@@ -1,0 +1,72 @@
+[project]
+name = "team-todo-backend"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastapi>=0.143.0",
+    "pg8000>=1.31.5",
+    "uvicorn>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+src = ["app", "tests"]
+extend-exclude = ["cli/src/ttodo/generated"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+    "COM812", # Conflicts with the formatter.
+    "COM819", # Conflicts with the formatter.
+    "D203",   # Conflicts with D211.
+    "D206",   # Conflicts with the formatter.
+    "D300",   # Conflicts with the formatter.
+    "D213",   # Conflicts with D212.
+    "E111",   # Conflicts with the formatter.
+    "E114",   # Conflicts with the formatter.
+    "E117",   # Conflicts with the formatter.
+    "ISC002", # Conflicts with the formatter when used without ISC001.
+    "Q000",   # Conflicts with the formatter.
+    "Q001",   # Conflicts with the formatter.
+    "Q002",   # Conflicts with the formatter.
+    "Q003",   # Conflicts with the formatter.
+    "Q004",   # Conflicts with the formatter.
+    "W191",   # Conflicts with the formatter.
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["pydantic.mypy"]
+strict = true
+warn_unused_configs = true
+warn_return_any = true
+disallow_any_generics = true
+disallow_any_unimported = true
+no_implicit_reexport = true
+strict_equality = true
+extra_checks = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = ["-ra", "--strict-config", "--strict-markers"]
+filterwarnings = ["error"]
