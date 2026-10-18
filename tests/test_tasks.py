@@ -1,4 +1,4 @@
-"""API behavior tests mapped to documented TC-001 through TC-030."""
+"""API behavior tests mapped to documented TC-001 through TC-036."""
 
 from __future__ import annotations
 
@@ -6,11 +6,34 @@ from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Barrier
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 from app.db import database
 from app.main import app
 from fastapi.testclient import TestClient
+from starlette.types import ASGIApp, Receive, Scope, Send
+
+
+class WorkerEnvironment:
+    """Inject Worker bindings through the ASGI request scope."""
+
+    def __init__(
+        self,
+        application: ASGIApp,
+        environment: object,
+        barrier: Barrier | None = None,
+    ) -> None:
+        self.application = application
+        self.environment = environment
+        self.barrier = barrier
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        cast(dict[str, object], scope)["env"] = self.environment
+        if self.barrier is not None:
+            self.barrier.wait(timeout=5)
+        await self.application(scope, receive, send)
 
 
 @pytest.fixture
@@ -71,6 +94,71 @@ def test_tc_033_api_token_protects_team_routes(
         "/api/v1/tasks", headers={"Authorization": "Bearer test-team-token"}
     )
     assert authorized.status_code == 200
+
+
+def test_tc_035_worker_token_is_required_and_validated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Worker token bindings fail closed and reject wrong bearer tokens."""
+    monkeypatch.setenv("TTODO_API_TOKEN", "local-only-token")
+    worker_app = WorkerEnvironment(app, SimpleNamespace())
+    with TestClient(worker_app) as client:
+        missing = client.get("/api/v1/tasks")
+        assert missing.status_code == 503
+
+    worker_app = WorkerEnvironment(app, SimpleNamespace(TTODO_API_TOKEN="worker-token"))
+    with TestClient(worker_app) as client:
+        missing_bearer = client.get("/api/v1/tasks")
+        wrong = client.get(
+            "/api/v1/tasks", headers={"Authorization": "Bearer wrong-token"}
+        )
+        assert missing_bearer.status_code == 401
+        assert wrong.status_code == 401
+
+
+def test_tc_035_worker_bindings_are_isolated_between_requests() -> None:
+    """Concurrent Worker requests use the token from their own ASGI scopes."""
+    barrier = Barrier(2)
+
+    def request_status(environment: object, token: str) -> int:
+        worker_app = WorkerEnvironment(app, environment, barrier)
+        with TestClient(worker_app) as client:
+            response = client.get(
+                "/api/v1/tasks", headers={"Authorization": f"Bearer {token}"}
+            )
+        return response.status_code
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(
+            request_status,
+            SimpleNamespace(TTODO_API_TOKEN="first-token"),
+            "first-token",
+        )
+        second = executor.submit(
+            request_status,
+            SimpleNamespace(TTODO_API_TOKEN="second-token"),
+            "first-token",
+        )
+
+    assert first.result() == 503
+    assert second.result() == 401
+
+
+def test_tc_036_worker_without_database_does_not_fall_back_to_sqlite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An authorized Worker request returns 503 when PostgreSQL is unset."""
+    monkeypatch.setenv("DATABASE_URL", "")
+    database_path = tmp_path / "todo.db"
+    monkeypatch.setenv("TODO_DB_PATH", str(database_path))
+    worker_app = WorkerEnvironment(app, SimpleNamespace(TTODO_API_TOKEN="worker-token"))
+    with TestClient(worker_app) as client:
+        response = client.get(
+            "/api/v1/tasks", headers={"Authorization": "Bearer worker-token"}
+        )
+
+    assert response.status_code == 503
+    assert not database_path.exists()
 
 
 @pytest.mark.parametrize(

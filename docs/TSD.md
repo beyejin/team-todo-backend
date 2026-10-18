@@ -28,6 +28,7 @@ uv run uvicorn app.main:app --reload
 - `app/main.py`: FastAPI 앱, 요청 모델, 경로 처리와 SQL 호출
 - `app/db.py`: SQLite 연결과 마이그레이션 적용
 - `app/kanban.py`: 기존 Supabase 칸반 보드 작업 생성 및 조회
+- `scripts/build_worker.py`, `wrangler.jsonc`: Cloudflare Python Worker 소스 준비와 실행 설정
 - `migrations/`: 버전별 스키마 변경
 - `tests/`: API 동작 테스트
 
@@ -89,11 +90,27 @@ uv run uvicorn app.main:app --reload
 - `400`: 잘못된 상태, 우선순위 필터 또는 유효하지 않은 마감일 범위
 - `404`: 존재하지 않거나 현재 동작에서 접근할 수 없는 항목
 - `422`: 요청 본문 또는 쿼리 값 검증 실패
+- `503`: Worker 설정 또는 기본 Todo 데이터베이스가 없음
 - `500`: 예상하지 못한 서버 오류
 
 ## 공유 서버 토큰
 
-`TTODO_API_TOKEN`을 설정한 서버는 `/api/` 경로에 `Authorization: Bearer <token>`이 없는 요청을 `401`로 거부합니다. 이 값을 설정하지 않은 로컬 개발 서버는 기존처럼 토큰 없이 사용할 수 있습니다. 토큰은 서버 환경의 비밀값으로 관리하고 코드, 응답, 로그에 기록하지 않습니다.
+`TTODO_API_TOKEN`을 설정한 로컬 서버는 `/api/` 경로에 유효한 bearer token이 없는 요청을 `401`로 거부합니다. 토큰을 설정하지 않은 로컬 개발 서버는 기존처럼 토큰 없이 사용할 수 있습니다. Worker는 설정 바인딩이 없으면 `503`, 바인딩이 있지만 요청 토큰이 없거나 다르면 `401`로 거부합니다. 토큰은 서버의 비밀값으로 관리하고 코드, 응답, 로그에 기록하지 않습니다.
+
+## Cloudflare Python Worker
+
+[`Cloudflare FastAPI 가이드`](https://developers.cloudflare.com/workers/languages/python/packages/fastapi/)에 따라 `scripts/build_worker.py`는 기존 로컬 `app/`을 `.worker-build/`에 복사하고 ASGI 진입점을 작성합니다. 기존 앱 경로는 그대로 유지합니다. `wrangler.jsonc`는 이 빌드 디렉터리를 Python Worker로 실행하도록 설정합니다. 로컬 Worker는 다음 명령으로 준비하고 실행합니다.
+
+```console
+uv run python scripts/build_worker.py
+uvx --from "uv>=0.12.3" uv run pywrangler dev
+```
+
+Python Workers 도구는 개발 의존성으로 설치하며 uv 0.12.3 이상을 사용합니다. 위 명령은 기존 uv 설치를 변경하지 않고 별도 도구 환경에서 실행합니다.
+
+Worker API에는 `TTODO_API_TOKEN` 비밀값과 PostgreSQL 접속 문자열 `DATABASE_URL`을 설정해야 합니다. 토큰이 없으면 `/api/` 요청은 `503`을 반환하고, DB가 없으면 유효한 토큰을 제공해도 `503`을 반환합니다. Worker는 SQLite 파일로 fallback하지 않습니다.
+
+Worker는 로컬 `migrations/` 파일을 읽거나 자동 적용하지 않습니다. 배포 전에 PostgreSQL 스키마를 별도로 준비해야 합니다. 최초 Todo 스키마는 `migrations/postgres/001_initial.sql`을 사용합니다. `KANBAN_DATABASE_URL` 경로도 마이그레이션을 자동 적용하지 않으며, 기존 공유 보드 스키마가 준비되어 있어야 합니다.
 
 ## 기존 Supabase 칸반 보드 연결
 
@@ -107,9 +124,9 @@ uv run uvicorn app.main:app --reload
 
 ## SQLite와 보안 한계
 
-DB 파일은 `TODO_DB_PATH`로 지정할 수 있습니다. 지정하지 않으면 프로젝트의 `data/todo.db`를 사용합니다. 요청 처리마다 연결을 열고 닫으며, 연결할 때 미적용 마이그레이션을 확인합니다. 여러 테이블을 함께 변경하는 작업은 요청 단위 트랜잭션으로 처리합니다.
+로컬 DB 파일은 `TODO_DB_PATH`로 지정할 수 있습니다. 지정하지 않으면 프로젝트의 `data/todo.db`를 사용합니다. 요청 처리마다 연결을 열고 닫으며, 연결할 때 미적용 마이그레이션을 확인합니다. 여러 테이블을 함께 변경하는 작업은 요청 단위 트랜잭션으로 처리합니다. Worker는 `DATABASE_URL` PostgreSQL만 사용하며 연결 시 애플리케이션 마이그레이션을 실행하지 않습니다.
 
-인증과 권한 검사는 제공하지 않습니다. API에 접근할 수 있는 사용자는 모든 할 일을 조회하고 변경할 수 있으므로 로컬 신뢰 환경에서만 사용하고 네트워크에 공개하지 않습니다.
+계정별 로그인과 역할별 권한 검사는 제공하지 않습니다. 로컬 서버는 신뢰할 수 있는 개발 환경에서 실행하고, 공개 서버는 Worker 토큰과 데이터베이스 설정을 구성한 뒤 사용합니다.
 
 ## 완료 기준
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -10,6 +9,10 @@ from importlib import import_module
 from pathlib import Path
 from typing import Protocol, cast
 from urllib.parse import parse_qs, unquote, urlparse
+
+from fastapi import HTTPException
+
+from app.settings import get_setting, is_worker_request
 
 ROOT = Path(__file__).resolve().parent.parent
 SQLITE_MIGRATIONS = ROOT / "migrations"
@@ -259,11 +262,15 @@ def connect_postgres(
 
 def connect() -> DatabaseConnection:
     """Open the configured database and apply its pending migrations."""
-    database_url = os.environ.get("DATABASE_URL")
+    database_url = get_setting("DATABASE_URL")
     if database_url:
-        return connect_postgres(database_url)
+        return connect_postgres(database_url, apply_migrations=not is_worker_request())
+    if is_worker_request():
+        raise HTTPException(
+            status_code=503, detail="기본 Todo 데이터베이스가 설정되지 않았습니다."
+        )
 
-    raw_path = os.environ.get("TODO_DB_PATH", str(ROOT / "data" / "todo.db"))
+    raw_path = get_setting("TODO_DB_PATH") or str(ROOT / "data" / "todo.db")
     path = Path(raw_path)
     if raw_path != ":memory:":
         path.parent.mkdir(parents=True, exist_ok=True)

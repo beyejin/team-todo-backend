@@ -185,3 +185,11 @@
   - 경로: `POST /api/v1/kanban/tasks`, `GET /api/v1/kanban/tasks/{task_id}`, `GET /api/v1/kanban/tasks`
   - 준비: 별도 로컬 PostgreSQL에 기존 보드 테이블과 멤버, 프로젝트, 보드, 칼럼을 만들고 연결한다.
   - 기대 결과: 작업, 보드 배치, 멤버, 라벨을 저장한다. 새 요청의 상세 조회와 보드 목록에 같은 작업이 나타난다. SQLite나 별도 `tasks` 테이블에 저장하지 않는다.
+
+- [ ] **TC-035 Worker 토큰 바인딩을 fail-closed로 검사**
+  - 상황: Worker ASGI scope에 토큰 바인딩이 없거나 요청 토큰이 다르다.
+  - 기대 결과: 토큰 바인딩이 없으면 `503`, 잘못된 토큰이면 `401`을 반환한다. Worker 외부 프로세스 환경변수에만 설정한 토큰을 바인딩으로 간주하지 않는다.
+
+- [ ] **TC-036 Worker DB 설정 누락 시 SQLite fallback 차단**
+  - 상황: Worker scope에 올바른 API 토큰은 있지만 PostgreSQL 연결 바인딩이 없다.
+  - 기대 결과: `503`을 반환하고 SQLite 파일이나 로컬 마이그레이션을 만들지 않는다.

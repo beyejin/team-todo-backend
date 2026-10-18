@@ -1,0 +1,47 @@
+{
+  "scope": "Local Cloudflare Python Worker runtime, not remote deployment",
+  "previous_probe": "python313-2026-10-18.json",
+  "runtime_checks": [
+    {
+      "request": "GET /openapi.json",
+      "configuration": "no token",
+      "observed_status": 200
+    },
+    {
+      "request": "GET /api/v1/tasks",
+      "configuration": "no token binding",
+      "observed_status": 503
+    },
+    {
+      "request": "GET /api/v1/tasks",
+      "configuration": "token binding set; no bearer header",
+      "observed_status": 401
+    },
+    {
+      "request": "GET /api/v1/tasks",
+      "configuration": "token binding set; wrong bearer",
+      "observed_status": 401
+    },
+    {
+      "request": "GET /api/v1/tasks",
+      "configuration": "correct bearer; database binding absent",
+      "observed_status": 503
+    }
+  ],
+  "regression_tests": [
+    "TC-035 Worker token bindings and concurrent request isolation",
+    "TC-036 No SQLite fallback for Worker requests"
+  ],
+  "local_verification": {
+    "backend_passed": 19,
+    "database_tests_skipped": 2,
+    "cli_passed": 51,
+    "ruff": "PASS",
+    "format": "PASS",
+    "mypy": "PASS"
+  },
+  "worker_tool_command_checked": "uvx --from \"uv>=0.12.3\" uv run pywrangler --help",
+  "remote_deployed": false,
+  "remaining_requirement": "Authenticated access to the existing Supabase project and verified database configuration",
+  "cleanup": "Probe servers stopped; fake .dev.vars tokens and generated Worker build files removed"
+}

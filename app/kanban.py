@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Literal, cast
@@ -12,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.db import DatabaseConnection, Row, connect_postgres
+from app.settings import get_setting
 
 BoardStatus = Literal["assigned", "in_progress", "completed"]
 STATUS_CATEGORIES = {
@@ -56,7 +56,7 @@ class BoardTaskInput(BaseModel):
 @contextmanager
 def kanban_database() -> Iterator[DatabaseConnection]:
     """Open the configured existing Kanban DB without creating parallel tables."""
-    database_url = os.environ.get("KANBAN_DATABASE_URL")
+    database_url = get_setting("KANBAN_DATABASE_URL")
     if not database_url:
         raise HTTPException(
             status_code=503, detail="공유 칸반 데이터베이스가 설정되지 않았습니다."
@@ -74,8 +74,8 @@ def kanban_database() -> Iterator[DatabaseConnection]:
 
 def board_configuration() -> tuple[str, str]:
     """Return the configured board and author profile IDs."""
-    board_id = os.environ.get("KANBAN_BOARD_ID")
-    actor_id = os.environ.get("KANBAN_ACTOR_PROFILE_ID")
+    board_id = get_setting("KANBAN_BOARD_ID")
+    actor_id = get_setting("KANBAN_ACTOR_PROFILE_ID")
     if not board_id or not actor_id:
         raise HTTPException(
             status_code=503, detail="공유 칸반 보드 또는 작성자 설정이 없습니다."
