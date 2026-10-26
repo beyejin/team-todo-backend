@@ -60,7 +60,11 @@ uvx --from ./cli ttodo kanban list
 uvx --from ./cli ttodo kanban get <작업-UUID>
 ```
 
-공유 서버에는 `TTODO_BASE_URL`과 `TTODO_API_TOKEN`을 설정해야 합니다. 서버는 `KANBAN_DATABASE_URL`, `KANBAN_BOARD_ID`, `KANBAN_ACTOR_PROFILE_ID`를 별도 환경 설정으로 사용합니다. 데이터베이스 비밀번호와 토큰은 명령 인수나 저장소에 넣지 않습니다. 현재 공유 서버 배포와 원격 보드 초기 데이터 설정은 완료되지 않아, 설정된 서버에서만 이 명령을 사용할 수 있습니다.
+CLI에는 `TTODO_BASE_URL`과 인증이 필요한 경우 `TTODO_API_TOKEN`을 설정합니다. 서버는 `KANBAN_DATABASE_URL`, `KANBAN_BOARD_ID`, `KANBAN_ACTOR_PROFILE_ID`를 사용합니다. `.env.example`을 참고해 비밀값을 Git에서 제외된 `.env`에 넣었다면 `uv run --env-file .env uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload`로 실행합니다. 비밀번호·토큰은 명령 인수나 저장소에 넣지 않습니다. 원격 보드의 존재와 현재 서버의 연결 완료는 별도로 확인해야 합니다.
+
+과제 #8의 상태 이동은 `PATCH /api/v1/kanban/tasks/{UUID}`와 `{"status":"in_progress"}`를 사용합니다. 기존 `001_worker_access.sql` 뒤에 `migrations/supabase/002_worker_status_update.sql`의 최소 UPDATE 권한이 필요합니다. CLI의 기존 create/list/get 명령은 유지합니다. 내용 편집·삭제는 미지원이며 [상태 변경·후속 API 문서](docs/KANBAN_API_CHANGES.md)에 정리했습니다.
+
+웹 화면·두 테마·3분 발표 개요는 별도 [team-todo-frontend](https://github.com/beyejin/team-todo-frontend) 저장소에 있습니다. 로컬 브라우저의 기본 CORS 허용 주소는 `localhost:3000`과 `127.0.0.1:3000`이며 `TTODO_CORS_ORIGINS`로 바꿀 수 있습니다.
 
 자주 쓰는 명령은 다음과 같습니다.
 
@@ -118,6 +122,27 @@ uv run --project cli pytest
 ```console
 bash scripts/verify.sh
 ```
+
+커밋 전에 같은 검사를 자동 실행하려면 최초 한 번 훅을 설치합니다.
+
+```console
+uv sync --locked
+uv sync --locked --project cli
+uv run --locked pre-commit install
+```
+
+이후 일반 `git commit`은 Ruff, 포맷, strict mypy, pytest 중 하나라도 실패하면
+중단됩니다. 전체 작업 내용을 먼저 검사하려면 다음 명령을 사용합니다.
+
+```console
+uv run --locked pre-commit run --all-files
+```
+
+검사는 파일을 자동 수정하지 않습니다. 수정 후 다시 검사하고 변경 내용을 검토해
+스테이징합니다. 부분 스테이징과 로컬 훅의 적용 범위, 실패 시 수정 순서는
+[`docs/HARNESS.md`](docs/HARNESS.md)에 정리했습니다.
+프론트엔드의 사용자 수동 테스트는 [프론트 TEST_CASE.md](https://github.com/beyejin/team-todo-frontend/blob/main/docs/TEST_CASE.md)에 있으며,
+Playwright E2E는 포함하지 않습니다.
 
 ## 동작 범위
 

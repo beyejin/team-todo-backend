@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hmac
+import os
 from datetime import UTC, datetime
 from typing import Annotated, Literal, cast
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import JSONResponse, Response
@@ -212,6 +214,21 @@ async def require_team_token(
                         headers={"WWW-Authenticate": "Bearer"},
                     )
         return await call_next(request)
+
+
+# 토큰 검사 뒤에 추가해 가장 바깥에서 실행되므로, 토큰 없는 preflight 요청도 통과한다.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        origin.strip()
+        for origin in os.environ.get(
+            "TTODO_CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+        ).split(",")
+        if origin.strip()
+    ],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 
 @app.post("/api/v1/tasks", status_code=201)

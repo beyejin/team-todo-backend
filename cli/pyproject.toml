@@ -33,6 +33,10 @@ extend-exclude = ["src/ttodo/generated"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+extend-select = [
+    "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ANN206",
+    "ASYNC", "C4", "PIE", "T10",
+]
 
 [tool.mypy]
 python_version = "3.13"

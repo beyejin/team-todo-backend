@@ -116,9 +116,11 @@ Worker는 로컬 `migrations/` 파일을 읽거나 자동 적용하지 않습니
 
 `KANBAN_DATABASE_URL`로 지정한 PostgreSQL을 사용하며, 공유 보드 API에서는 기본 Todo 마이그레이션을 적용하지 않습니다. `KANBAN_BOARD_ID`와 `KANBAN_ACTOR_PROFILE_ID`는 대상 보드와 작성자 프로필 UUID입니다.
 
+상태 변경은 `PATCH /api/v1/kanban/tasks/{task_id}`와 `{ "status": "in_progress" }`를 사용합니다. 상태 외 필드를 거부하며 한 트랜잭션으로 배치와 수정 시각을 갱신합니다. 같은 상태는 변경하지 않습니다. 오류·동시성·최소 권한은 [KANBAN_API_CHANGES.md](KANBAN_API_CHANGES.md)에 정의합니다.
+
 작업은 `issues`에 저장하고 보드 칼럼 및 순서는 `board_items`에 기록합니다. 상태는 `board_items.column_id -> board_columns.workflow_status_id -> workflow_statuses.category`에서 계산합니다. 담당자는 workspace의 `profiles.github_username`으로 확인해 `issue_assignees`에 연결하고, 프로젝트 라벨과 `issue_labels`를 사용합니다. 체크리스트 테이블에는 쓰지 않습니다.
 
-공유 보드 프로젝트의 public 테이블 14개는 현재 RLS가 꺼져 있습니다. API bearer token은 Supabase Data API의 직접 접근을 막지 않으므로, 공개 역할 차단 정책과 Cloudflare 비밀값을 설정한 뒤 배포해야 합니다.
+원격 RLS·역할 권한은 배포 전에 실제 프로젝트에서 다시 확인합니다. API bearer token은 Supabase Data API의 직접 접근을 막지 않습니다. 기존 `001_worker_access.sql`과 상태 이동용 `002_worker_status_update.sql`의 적용 여부를 구분하며, 로컬 검증만으로 원격 적용 완료라고 보고하지 않습니다.
 
 오류 응답에 내부 SQL이나 로컬 파일 경로를 포함하지 않습니다.
 
