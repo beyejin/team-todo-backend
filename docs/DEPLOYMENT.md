@@ -1,13 +1,13 @@
 # Vercel 배포 준비
 
-2026-10-26 기준 [Vercel 백엔드](https://team-todo-backend-pied.vercel.app)는 Python 3.13으로 배포되어 READY 상태입니다. `DATABASE_URL`과 `KANBAN_DATABASE_URL`은 아직 설정되지 않았으며 원격 SQL도 미실행입니다. 일반 Todo와 공유 칸반은 서로 다른 저장소 계약을 유지합니다.
+2026-10-26 기준 [Vercel 백엔드](https://team-todo-backend-pied.vercel.app)는 Python 3.13·서울 `icn1`으로 배포되어 READY 상태입니다. `KANBAN_DATABASE_URL`을 Production 비밀 환경변수로 설정했고 실제 Supabase 공유 칸반의 조회·등록·상태 변경을 확인했습니다. 일반 Todo의 `DATABASE_URL`과 `003_todo_app.sql` 적용은 아직 준비되지 않아 해당 API는 503입니다. 두 기능은 서로 다른 저장소 계약을 유지합니다.
 
 ## Python과 진입점
 
 - `.python-version`의 `3.13`과 `pyproject.toml`의 `>=3.13,<3.14`를 유지합니다. Vercel은 Python 3.13을 지원합니다.
-- `app/main.py`가 내보내는 `app = FastAPI(...)`는 자동 인식 대상입니다. Framework Preset은 FastAPI, 프로젝트 루트는 이 저장소 루트이며 별도 Build Command, Output Directory, 엔트리포인트 래퍼, `vercel.json`은 필요하지 않습니다.
+- `app/main.py`가 내보내는 `app = FastAPI(...)`는 자동 인식 대상입니다. Framework Preset은 FastAPI, 프로젝트 루트는 이 저장소 루트이며 별도 Build Command, Output Directory, 엔트리포인트 래퍼는 필요하지 않습니다. `vercel.json`은 Supabase와 가까운 서울 `icn1` 실행 리전만 지정합니다.
 - `pyproject.toml`과 `uv.lock`으로 설치합니다. 현재 Vercel Python 빌더는 `uv sync --no-dev`를 사용하므로 `workers-py`, `workers-runtime-sdk`, 검사 도구는 배포 의존성에 포함하지 않습니다. 빌드 로그에서도 Python 3.13과 개발 의존성 제외를 확인합니다.
-- `.vercelignore`는 `app/`, `pyproject.toml`, `uv.lock`, `.python-version`만 업로드하도록 제한합니다. 따라서 환경 파일, 로컬 DB, Cloudflare 산출물, 가상 환경, CLI, 문서, 테스트는 업로드 대상이 아닙니다. 배포 전에 로컬 또는 CI에서 전체 검사를 실행합니다.
+- `.vercelignore`는 `app/`, `pyproject.toml`, `uv.lock`, `.python-version`, `vercel.json`만 업로드하도록 제한합니다. 따라서 환경 파일, 로컬 DB, Cloudflare 산출물, 가상 환경, CLI, 문서, 테스트는 업로드 대상이 아닙니다. 배포 전에 로컬 또는 CI에서 전체 검사를 실행합니다.
 
 근거: [FastAPI 진입점](https://vercel.com/docs/frameworks/backend/fastapi), [Python 버전·의존성](https://vercel.com/docs/functions/runtimes/python), [Vercel 빌더의 개발 의존성 제외](https://github.com/vercel/vercel/blob/17ee73663e30c0ddd91cdf5fcf134c55a0a6ea0a/packages/python/src/uv.ts), [업로드 제외 설정](https://vercel.com/docs/deployments/vercel-ignore).
 
@@ -44,7 +44,7 @@ Vercel과 Cloudflare Worker에서는 SQLite 대체 연결과 요청 중 자동 �
 
 ## 공유 칸반 연결
 
-`KANBAN_DATABASE_URL`에는 기존 `ttodo_worker` 자격증명을 사용하고 일반 Todo 역할과 혼용하지 않습니다. 상태 변경에는 [`002_worker_status_update.sql`](../migrations/supabase/002_worker_status_update.sql)의 열 단위 UPDATE 권한이 필요합니다. 원격 적용 여부는 별도로 확인합니다. `001_worker_access.sql`을 무조건 재실행하면 이후 추가한 권한이 회수될 수 있으므로 기존 역할·정책을 먼저 대조합니다.
+`KANBAN_DATABASE_URL`에는 `ttodo_worker` 자격증명을 사용하고 일반 Todo 역할과 혼용하지 않습니다. 사용자가 비밀번호 재설정과 [`002_worker_status_update.sql`](../migrations/supabase/002_worker_status_update.sql)의 열 단위 UPDATE 권한을 직접 적용했습니다. 이후 새 연결에서 `current_user=ttodo_worker`, `board_items.column_id`·`issues.updated_at` UPDATE 허용을 다시 확인했습니다. `001_worker_access.sql`을 무조건 재실행하면 이후 추가한 권한이 회수될 수 있으므로 기존 역할·정책을 먼저 대조합니다.
 
 ## 검증 기준과 실행 기록
 
@@ -58,4 +58,10 @@ Vercel과 Cloudflare Worker에서는 SQLite 대체 연결과 요청 중 자동 �
 
 `003_todo_app.sql` 전체 파일을 별도 임시 PostgreSQL 17.11 서버에 한 번 적용했습니다. NOLOGIN 역할과 4개 RLS 테이블, 금지 권한, 익명·공개 역할의 스키마 접근 거부를 확인했습니다. 해당 역할로 실제 API 생성·조회·수정·소프트 삭제·복구가 성공했고, 기존 칸반 fixture 행과 `ttodo_worker` 권한은 그대로였습니다. 이 임시 서버는 검증 후 제거했습니다.
 
-실제 Vercel 검증에서는 `/openapi.json` 200, 토큰 없는 API 요청 401, 설정된 서버 토큰을 보낸 일반 Todo·공유 칸반 API의 DB 미설정 응답 503을 확인했습니다. 따라서 앱 배포와 인증 보호는 확인했으며, DB 연결·일반 Todo CRUD·공유 칸반 상태 변경·프론트엔드 연결의 운영 검증은 남아 있습니다. 로컬 DB 결과를 원격 성공으로 기록하지 않습니다.
+실제 Vercel 검증에서는 `/openapi.json` 200과 토큰 없는 API 요청 401을 확인했습니다. 칸반 설정 후 인증된 백엔드 목록과 배포 프론트의 `/api/kanban/tasks` 프록시가 모두 200을 반환했습니다. 일반 Todo는 DB 미설정 503을 유지합니다.
+
+실제 업무 `과제 #8 칸반 배포 및 데모 영상 제작`을 CLI로 등록했습니다. 최초 생성 요청은 5초 제한에 걸렸으나 재등록 전에 API로 저장을 확인해 중복을 만들지 않았습니다. 업무 번호는 13, UUID는 `8bd6b2e8-02ef-4196-a7a2-dd268026b1e6`입니다. 프론트 프록시를 통한 PATCH로 진행 중 → 완료 → 진행 중이 모두 200이었고, 최종 상태는 영상 작업이 남아 있어 `in_progress`입니다. DB 직접 조회에서도 해당 상태와 기존 업무 4개의 상태 보존을 확인했습니다.
+
+미국 `iad1` 실행 당시 목록 조회는 9.52초였으며, 서울 리전 재배포 후 같은 목록 조회는 0.71초였습니다. 각각 한 번 측정한 관측값이며 평균 성능이나 부하 검증 결과가 아닙니다. Vercel 배포 `dpl_GhDnuo6P6t1ocqCb5JeGh8YNjRzi`의 API 재조회에서 `regions=["icn1"]`과 READY를 확인했고 CLI 상세 조회도 정상화됐습니다. [함수 실행 리전 설정](https://vercel.com/docs/functions/configuring-functions/region)
+
+위 결과는 실제 서버·프론트 프록시 HTTP·DB 검증입니다. 브라우저의 클릭·드래그·두 브라우저 공유와 데모 영상 촬영은 브라우저 연결이 복구된 뒤 별도로 수행합니다.
