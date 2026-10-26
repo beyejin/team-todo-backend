@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from fastapi import HTTPException
 
-from app.settings import get_setting, is_worker_request
+from app.settings import get_setting, is_deployed_request
 
 ROOT = Path(__file__).resolve().parent.parent
 SQLITE_MIGRATIONS = ROOT / "migrations"
@@ -261,11 +261,13 @@ def connect_postgres(
 
 
 def connect() -> DatabaseConnection:
-    """Open the configured database and apply its pending migrations."""
+    """Open the configured database, applying migrations only in local mode."""
     database_url = get_setting("DATABASE_URL")
     if database_url:
-        return connect_postgres(database_url, apply_migrations=not is_worker_request())
-    if is_worker_request():
+        return connect_postgres(
+            database_url, apply_migrations=not is_deployed_request()
+        )
+    if is_deployed_request():
         raise HTTPException(
             status_code=503, detail="기본 Todo 데이터베이스가 설정되지 않았습니다."
         )

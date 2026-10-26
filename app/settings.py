@@ -36,3 +36,8 @@ def get_setting(name: str) -> str | None:
 def is_worker_request() -> bool:
     """Return whether the current ASGI request has a Worker environment scope."""
     return _request_environment.get() is not _LOCAL_ENVIRONMENT
+
+
+def is_deployed_request() -> bool:
+    """Identify Worker and Vercel requests that require server-only resources."""
+    return is_worker_request() or os.environ.get("VERCEL") == "1"

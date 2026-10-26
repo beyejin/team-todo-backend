@@ -15,7 +15,7 @@ from starlette.responses import JSONResponse, Response
 
 from app.db import DatabaseConnection, Row, database
 from app.kanban import router as kanban_router
-from app.settings import bind_request_environment, get_setting, is_worker_request
+from app.settings import bind_request_environment, get_setting, is_deployed_request
 
 Status = Literal["assigned", "in_progress", "completed"]
 Priority = Literal["low", "medium", "high"]
@@ -197,7 +197,7 @@ async def require_team_token(
     with bind_request_environment(request.scope):
         expected_token = get_setting("TTODO_API_TOKEN")
         if request.url.path.startswith("/api/"):
-            if is_worker_request() and not expected_token:
+            if is_deployed_request() and not expected_token:
                 return JSONResponse(
                     status_code=503,
                     content={"detail": "API 토큰이 설정되지 않았습니다."},
