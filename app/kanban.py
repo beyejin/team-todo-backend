@@ -1,4 +1,4 @@
-"""API routes that create and read tasks in the existing shared Kanban schema."""
+"""Create, read and move tasks in the existing shared Kanban schema."""
 
 from __future__ import annotations
 
@@ -51,6 +51,14 @@ class BoardTaskInput(BaseModel):
     def normalized_names(cls, value: list[str]) -> list[str]:
         """Normalize assigned GitHub usernames and project labels."""
         return clean_values(value)
+
+
+class BoardTaskStatusPatch(BaseModel):
+    """Require one supported status without allowing unrelated issue edits."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: BoardStatus
 
 
 @contextmanager
@@ -309,3 +317,76 @@ def get_board_task(task_id: UUID) -> dict[str, object]:
         if row is None:
             raise HTTPException(status_code=404, detail="보드 작업을 찾을 수 없습니다.")
         return task_dict(connection, row)
+
+
+@router.patch("/{task_id}")
+def update_board_task_status(
+    task_id: UUID, payload: BoardTaskStatusPatch
+) -> dict[str, object]:
+    """Move a board issue to the end of a status column in one transaction."""
+    board_id, actor_id = board_configuration()
+    with kanban_database() as connection:
+        project_id, _ = board_context(connection, board_id, actor_id)
+        # Share creation's lock so concurrent inserts and moves cannot reuse a position.
+        connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(?)::bigint)",
+            (f"kanban-project:{project_id}",),
+        )
+        row = connection.execute(
+            "SELECT issues.id, issues.issue_number, issues.title, issues.description, "
+            "issues.created_at, issues.updated_at, board_items.board_id, "
+            "board_items.column_id, board_items.position, workflow_statuses.category "
+            "FROM issues JOIN board_items ON board_items.issue_id = issues.id "
+            "JOIN board_columns ON board_columns.id = board_items.column_id "
+            "JOIN workflow_statuses "
+            "ON workflow_statuses.id = board_columns.workflow_status_id "
+            "WHERE issues.id = ? AND board_items.board_id = ? "
+            "FOR UPDATE OF issues, board_items",
+            (task_id, board_id),
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="보드 작업을 찾을 수 없습니다.")
+        category = STATUS_CATEGORIES[payload.status]
+        if row["category"] == category:
+            return task_dict(connection, row)
+        column = connection.execute(
+            "SELECT board_columns.id FROM board_columns "
+            "JOIN workflow_statuses "
+            "ON workflow_statuses.id = board_columns.workflow_status_id "
+            "WHERE board_columns.board_id = ? AND workflow_statuses.category = ? "
+            "ORDER BY board_columns.position LIMIT 1",
+            (board_id, category),
+        ).fetchone()
+        if column is None:
+            raise HTTPException(
+                status_code=409, detail="요청한 상태에 해당하는 보드 칼럼이 없습니다."
+            )
+        column_id = str(column["id"])
+        position_row = connection.execute(
+            "SELECT COALESCE(MAX(position), -1) + 1 AS position "
+            "FROM board_items WHERE column_id = ?",
+            (column_id,),
+        ).fetchone()
+        if position_row is None:
+            raise RuntimeError("보드 칼럼 위치를 확인할 수 없습니다.")
+        position = cast(int, position_row["position"])
+        connection.execute(
+            "UPDATE board_items SET column_id = ?, position = ?, "
+            "updated_at = clock_timestamp() WHERE board_id = ? AND issue_id = ?",
+            (column_id, position, board_id, task_id),
+        )
+        updated = connection.execute(
+            "UPDATE issues SET updated_at = clock_timestamp() WHERE id = ? "
+            "RETURNING updated_at",
+            (task_id,),
+        ).fetchone()
+        if updated is None:
+            raise RuntimeError("변경한 작업의 수정 시각을 확인할 수 없습니다.")
+        result = task_dict(connection, row)
+        result.update(
+            status=payload.status,
+            column_id=column_id,
+            position=position,
+            updated_at=updated["updated_at"],
+        )
+        return result

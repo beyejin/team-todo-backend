@@ -18,3 +18,4 @@ pylock.toml
 .worker-build/
 dist/
 data/*.db
+.vercel/

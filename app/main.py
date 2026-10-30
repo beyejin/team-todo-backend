@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import hmac
+import os
 from datetime import UTC, datetime
 from typing import Annotated, Literal, cast
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import JSONResponse, Response
 
 from app.db import DatabaseConnection, Row, database
 from app.kanban import router as kanban_router
-from app.settings import bind_request_environment, get_setting, is_worker_request
+from app.settings import bind_request_environment, get_setting, is_deployed_request
 
 Status = Literal["assigned", "in_progress", "completed"]
 Priority = Literal["low", "medium", "high"]
@@ -195,7 +197,7 @@ async def require_team_token(
     with bind_request_environment(request.scope):
         expected_token = get_setting("TTODO_API_TOKEN")
         if request.url.path.startswith("/api/"):
-            if is_worker_request() and not expected_token:
+            if is_deployed_request() and not expected_token:
                 return JSONResponse(
                     status_code=503,
                     content={"detail": "API 토큰이 설정되지 않았습니다."},
@@ -212,6 +214,21 @@ async def require_team_token(
                         headers={"WWW-Authenticate": "Bearer"},
                     )
         return await call_next(request)
+
+
+# 토큰 검사 뒤에 추가해 가장 바깥에서 실행되므로, 토큰 없는 preflight 요청도 통과한다.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        origin.strip()
+        for origin in os.environ.get(
+            "TTODO_CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+        ).split(",")
+        if origin.strip()
+    ],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 
 @app.post("/api/v1/tasks", status_code=201)

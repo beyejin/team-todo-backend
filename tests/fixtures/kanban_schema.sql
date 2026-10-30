@@ -41,6 +41,11 @@ CREATE TABLE board_columns (
     name text NOT NULL,
     position integer NOT NULL
 );
+CREATE TABLE milestones (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id uuid NOT NULL REFERENCES projects(id),
+    name text NOT NULL
+);
 CREATE TABLE issues (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id uuid NOT NULL REFERENCES projects(id),
@@ -53,6 +58,12 @@ CREATE TABLE issues (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     UNIQUE (project_id, issue_number)
+);
+CREATE TABLE checklist_items (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    issue_id uuid NOT NULL REFERENCES issues(id),
+    content text NOT NULL,
+    is_completed boolean NOT NULL DEFAULT false
 );
 CREATE TABLE board_items (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

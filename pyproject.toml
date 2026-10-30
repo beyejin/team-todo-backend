@@ -12,6 +12,7 @@ dependencies = [
 dev = [
     "httpx2>=2.13.1",
     "mypy>=2.4.0",
+    "pre-commit>=4.4",
     "pytest>=9.1.1",
     "ruff>=0.17.0",
     "workers-py>=1.17.8",
@@ -26,6 +27,10 @@ extend-exclude = ["cli/src/ttodo/generated"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+extend-select = [
+    "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ANN206",
+    "ASYNC", "C4", "PIE", "T10",
+]
 ignore = [
     "COM812", # Conflicts with the formatter.
     "COM819", # Conflicts with the formatter.

@@ -65,6 +65,7 @@
 
 * `POST /api/v1/kanban/tasks`는 기존 프로젝트에 작업을 만들고 보드 칼럼에 배치합니다.
 * `GET /api/v1/kanban/tasks`와 `GET /api/v1/kanban/tasks/{task_id}`는 보드 작업을 조회합니다.
+* `PATCH /api/v1/kanban/tasks/{task_id}`는 상태만 변경하고 대응 칼럼 끝으로 이동합니다. 칸반 내용 수정·삭제·복구는 제공하지 않습니다. [상세 계약](KANBAN_API_CHANGES.md)을 따릅니다.
 * 상태는 `board_items`와 `board_columns`가 연결하는 `workflow_statuses.category`에서 계산합니다.
 * 담당자는 해당 workspace 멤버 프로필인지 확인하고, 라벨은 기존 프로젝트 라벨 관계로 저장합니다.
 

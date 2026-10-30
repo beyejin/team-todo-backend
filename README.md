@@ -31,7 +31,16 @@ uv run python scripts/build_worker.py
 uvx --from "uv>=0.12.3" uv run pywrangler dev
 ```
 
-배포 환경에는 `TTODO_API_TOKEN`과 PostgreSQL 접속 문자열 `DATABASE_URL`이 필요합니다. Worker는 토큰이나 DB 설정이 없으면 업무 API에 `503`을 반환하며, SQLite로 전환하지 않습니다. DB 스키마는 Worker 밖에서 미리 적용해야 합니다. Todo의 첫 스키마는 `migrations/postgres/001_initial.sql`을 사용합니다. 실제 Worker 배포와 원격 DB 초기화는 아직 완료되지 않았습니다.
+배포 환경에는 `TTODO_API_TOKEN`이 필요합니다. 기본 Todo API는 PostgreSQL 접속 문자열 `DATABASE_URL`을 사용하고, 공유 칸반 API는 아래의 별도 연결 설정을 사용합니다. Worker는 필수 설정이 없으면 해당 업무 API에 `503`을 반환하며 SQLite로 전환하지 않습니다. DB 스키마는 Worker 밖에서 미리 적용해야 합니다. Todo의 첫 스키마는 `migrations/postgres/001_initial.sql`을 사용합니다. 실제 Worker 배포는 아직 완료되지 않았습니다.
+
+### 기존 Supabase 공유 보드 연결
+
+기존 보드와 데이터를 보존하며 다음 SQL을 순서대로 적용합니다.
+
+1. `migrations/supabase/000_create_worker_role.sql`: 새 서버 전용 계정과 무작위 자격 증명을 생성합니다. 기존 DB 관리자 비밀번호는 변경하지 않습니다. 반환된 비밀번호와 API 토큰을 Git이나 쿼리 결과 파일에 저장하지 마세요.
+2. `migrations/supabase/001_worker_access.sql`: 기존 14개 테이블의 RLS를 켜고, 서버 계정에 칸반 API에 필요한 읽기와 쓰기만 허용합니다. 익명 Data API 접근은 차단됩니다. 테이블과 기존 행을 삭제하거나 초기화하지 않습니다.
+
+Worker에는 `TTODO_API_TOKEN`, `KANBAN_DATABASE_URL`을 비밀값으로 설정하고, `KANBAN_BOARD_ID`, `KANBAN_ACTOR_PROFILE_ID`를 기존 보드와 멤버 UUID로 설정합니다. Session Pooler 접속 시 사용자명은 `ttodo_worker.<project-ref>`이며, Connect 화면의 호스트와 포트 및 TLS 설정을 사용합니다. 공유 칸반 API만 사용할 때는 `DATABASE_URL`이 필요하지 않습니다.
 
 ## CLI 사용
 
@@ -51,7 +60,11 @@ uvx --from ./cli ttodo kanban list
 uvx --from ./cli ttodo kanban get <작업-UUID>
 ```
 
-공유 서버에는 `TTODO_BASE_URL`과 `TTODO_API_TOKEN`을 설정해야 합니다. 서버는 `KANBAN_DATABASE_URL`, `KANBAN_BOARD_ID`, `KANBAN_ACTOR_PROFILE_ID`를 별도 환경 설정으로 사용합니다. 데이터베이스 비밀번호와 토큰은 명령 인수나 저장소에 넣지 않습니다. 현재 공유 서버 배포와 원격 보드 초기 데이터 설정은 완료되지 않아, 설정된 서버에서만 이 명령을 사용할 수 있습니다.
+CLI에는 `TTODO_BASE_URL`과 인증이 필요한 경우 `TTODO_API_TOKEN`을 설정합니다. 서버는 `KANBAN_DATABASE_URL`, `KANBAN_BOARD_ID`, `KANBAN_ACTOR_PROFILE_ID`를 사용합니다. `.env.example`을 참고해 비밀값을 Git에서 제외된 `.env`에 넣었다면 `uv run --env-file .env uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload`로 실행합니다. 비밀번호·토큰은 명령 인수나 저장소에 넣지 않습니다. 원격 보드의 존재와 현재 서버의 연결 완료는 별도로 확인해야 합니다.
+
+과제 #8의 상태 이동은 `PATCH /api/v1/kanban/tasks/{UUID}`와 `{"status":"in_progress"}`를 사용합니다. 기존 `001_worker_access.sql` 뒤에 `migrations/supabase/002_worker_status_update.sql`의 최소 UPDATE 권한이 필요합니다. CLI의 기존 create/list/get 명령은 유지합니다. 내용 편집·삭제는 미지원이며 [상태 변경·후속 API 문서](docs/KANBAN_API_CHANGES.md)에 정리했습니다.
+
+웹 화면·두 테마·3분 발표 개요는 별도 [team-todo-frontend](https://github.com/beyejin/team-todo-frontend) 저장소에 있습니다. 로컬 브라우저의 기본 CORS 허용 주소는 `localhost:3000`과 `127.0.0.1:3000`이며 `TTODO_CORS_ORIGINS`로 바꿀 수 있습니다.
 
 자주 쓰는 명령은 다음과 같습니다.
 
@@ -109,6 +122,27 @@ uv run --project cli pytest
 ```console
 bash scripts/verify.sh
 ```
+
+커밋 전에 같은 검사를 자동 실행하려면 최초 한 번 훅을 설치합니다.
+
+```console
+uv sync --locked
+uv sync --locked --project cli
+uv run --locked pre-commit install
+```
+
+이후 일반 `git commit`은 Ruff, 포맷, strict mypy, pytest 중 하나라도 실패하면
+중단됩니다. 전체 작업 내용을 먼저 검사하려면 다음 명령을 사용합니다.
+
+```console
+uv run --locked pre-commit run --all-files
+```
+
+검사는 파일을 자동 수정하지 않습니다. 수정 후 다시 검사하고 변경 내용을 검토해
+스테이징합니다. 부분 스테이징과 로컬 훅의 적용 범위, 실패 시 수정 순서는
+[`docs/HARNESS.md`](docs/HARNESS.md)에 정리했습니다.
+프론트엔드의 사용자 수동 테스트는 [프론트 TEST_CASE.md](https://github.com/beyejin/team-todo-frontend/blob/main/docs/TEST_CASE.md)에 있으며,
+Playwright E2E는 포함하지 않습니다.
 
 ## 동작 범위
 

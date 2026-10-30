@@ -1,0 +1,7 @@
+# Upload only the application and its locked production dependencies.
+/*
+!app
+!pyproject.toml
+!uv.lock
+!.python-version
+!vercel.json

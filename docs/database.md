@@ -100,6 +100,7 @@ SQLite에 할 일과 담당자, 태그, 라벨을 저장합니다. 삭제는 행
 
 - 작업 제목과 설명은 `issues`에 저장합니다.
 - 보드와 칼럼 및 순서는 `board_items`에 저장합니다.
+- 상태 변경 시 해당 보드의 `board_items.column_id`, `position`, `updated_at`과 `issues.updated_at`만 갱신합니다. 두 행은 같은 트랜잭션에서 잠그고 갱신하며 실패 시 함께 롤백합니다.
 - 상태는 `board_items`에서 `board_columns`와 `workflow_statuses`로 이어지는 관계에서 계산합니다. `issues.status` 컬럼은 사용하지 않습니다.
 - 담당자는 `profiles`와 `workspace_members`에서 팀 멤버인지 확인하고 `issue_assignees`로 연결합니다.
 - 라벨은 프로젝트별 `labels`와 `issue_labels`로 연결합니다.
